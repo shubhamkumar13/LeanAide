@@ -3,13 +3,53 @@ import LeanCodePrompts.EpsilonClusters
 import LeanAide.Aides
 import Lean.Data.Json
 import Batteries.Util.Pickle
-open Lean
+import LeanAideCore.Template
+import LeanAideCore.MathDoc
+import LeanAideCore.Resources
+import Qq
+
+set_option autoImplicit false
+
+open Lean Meta Qq System Elab LeanAide
+
+initialize registerTraceClass `LeanAide.BenchmarkEmbeddings
+
+namespace LeanAide
+
+instance : Repr SyntaxNodeKinds where
+  reprPrec kinds n :=
+    let names : List Name := kinds
+    Repr.reprPrec names n
+
+instance : ToString SyntaxNodeKinds where
+  toString kinds :=
+    let names : List Name := kinds
+    ToString.toString names
+
+namespace BenchmarkEmbeddings
+
+syntax (name := benchmark_embeddings) "benchmark_embeddings" (str,*)? : attr
+
+abbrev Name_and_OptionString := Name × (Option String)
+abbrev Map_of_OptionString_to_ArrayName := Std.HashMap (Option String) (Array Name)
+
+initialize benchmarkEmbeddingsExt :
+  SimpleScopedEnvExtension Name_and_OptionString Map_of_OptionString_to_ArrayName ←
+    registerSimpleScopedEnvExtension {
+      addEntry := fun m (n, key?) => m.insert key? <| (m.getD key? #[]).push n
+      initial := {}
+    }
+
+def benchmarkEmbeddingsKeyM (stx : Syntax) : CoreM (Option <| Array String) := do
+  match stx with
+
 
 unsafe def checkAndFetch (descField: String) : IO Unit := do
   let picklePath ← picklePath descField
   let picklePresent ←
     if ← picklePath.pathExists then
-    IO.eprintln s!"Pickle file already present at {picklePath}"
+    -- IO.eprintln s!"Pickle file already present at {picklePath}"
+    trace[leanide.benchmark_embeddings.info] s!"Pickle file already present at"
     try
       withUnpickle  picklePath <|
         fun (_ : EmbedData) => do

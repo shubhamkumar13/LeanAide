@@ -7,6 +7,7 @@ initialize
   registerTraceClass `Translate.warning
   registerTraceClass `leanaide.proof.info
   registerTraceClass `leanaide.codegen.info
+  registerTraceClass `leanaide.benchmark_embeddings.info
 
 register_option leanaide.logging : Bool :=
   { defValue := false
