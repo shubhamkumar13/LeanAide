@@ -33,7 +33,7 @@ structure SchemaData where
 
 inductive AddToSchemaData where
   | schemaElement (label: String) (schema : Json) (groups: Array String) : AddToSchemaData
-  | anyOfGroup (groupId : String) (desc : Description) (members : Array String := #[]) : AddToSchemaData
+  | anyOfGroup (groupId : String) (desc : Option Description) (members : Array String := #[]) : AddToSchemaData
   | addToGroup (groupId : String) (members : Array String) : AddToSchemaData
   deriving Inhabited
 open AddToSchemaData
@@ -54,9 +54,12 @@ def add (st : SchemaData) (atst : AddToSchemaData) : SchemaData :=
   match atst with
   | schemaElement label schema groups =>
     { st with schemaElements := st.schemaElements.insert label schema } |>.addMemberToGroups groups label
-  | anyOfGroup groupId desc members =>
+  | anyOfGroup groupId desc? members =>
     { st with
-      anyOfGroupDescs := st.anyOfGroupDescs.insert groupId desc
+      anyOfGroupDescs :=
+        match desc? with
+        | some desc => st.anyOfGroupDescs.insert groupId desc
+        | none => st.anyOfGroupDescs
       anyOfGroupMembers := st.anyOfGroupMembers.insert groupId members }
   | addToGroup groupId members =>
     let updatedMembers :=
@@ -67,16 +70,16 @@ def add (st : SchemaData) (atst : AddToSchemaData) : SchemaData :=
 
 def groupJson? (data : SchemaData) (groupId : String) : Option Json :=
   data.anyOfGroupMembers.get? groupId |>.map fun members =>
-  let desc := data.anyOfGroupDescs.getD groupId s!"a sequence of objects of type `{groupId}`"
   let refs := members.map (fun m => mkObj [("$ref", s!"#/$defs/{m}")])
-  mkObj [("description", desc), ("anyOf", toJson refs)]
+  let desc? := data.anyOfGroupDescs.get? groupId
+  match desc? with
+  | some desc =>  mkObj [("description", desc), ("anyOf", toJson refs)]
+  | none => mkObj [("anyOf", toJson refs)]
 
 def groupJsonDef? (data : SchemaData) (groupId : String) :
 Option Json :=
-  data.anyOfGroupMembers.get? groupId |>.map fun members =>
-  let desc := data.anyOfGroupDescs.getD groupId s!"a sequence of objects of type `{groupId}`"
-  let refs := members.map (fun m => mkObj [("$ref", s!"#/$defs/{m}")])
-  mkObj [ ("group", mkObj [("description", desc), ("anyOf", toJson refs)])  ]
+  groupJson? data groupId |>.map fun groupJson =>
+  mkObj [(groupId, groupJson)]
 
 def elementJson? (data : SchemaData) (elem: String) : Option Json :=
   data.schemaElements.get? elem
@@ -128,6 +131,42 @@ def SchemaData.get : MetaM SchemaData := do
   let env ← getEnv
   return jsonSchemasExt.getState env
 
+def schemaGroupMembers (groupId : String) : MetaM (Option (Array String)) := do
+  let data ← SchemaData.get
+  return data.anyOfGroupMembers.get? groupId
+
+def schemaElementJson? (label: String) : MetaM (Option Json) := do
+  let data ← SchemaData.get
+  return data.elementJson? label
+
+def schemaElementsList : MetaM (Array String) := do
+  let data ← SchemaData.get
+  return data.schemaElements.keys.toArray
+
+def groupList : MetaM (Array String) := do
+  let data ← SchemaData.get
+  return data.anyOfGroupMembers.keys.toArray
+
+def getAllDefLabelsFrom (top: Json) (upperNames: Array String := #[]) : MetaM (Array String) := do
+  let data ← SchemaData.get
+  return data.getAllDefsFrom top upperNames
+
+def getAllDefJsonsFrom (top: Json) (upperNames: Array String := #[]) : MetaM (Json) := do
+  let data ← SchemaData.get
+  let labels := data.getAllDefsFrom top upperNames |>.toList
+  return Json.mkObj <| labels.filterMap (fun l => data.labelJson? l |>.map (fun j => (l, j)))
+
+def withAllDefs (top: Json) (upperNames: Array String := #[]) : MetaM Json := do
+  let defList ← getAllDefJsonsFrom top upperNames
+  let defs := mkObj [("$defs", defList)]
+  return top.mergeObj defs
+
+elab "schema_element%" n:ident : term => do
+  let label := n.getId.toString
+  let data ← SchemaData.get
+  match data.elementJson? label with
+  | some js => jsonToExpr js
+  | none => throwError "No schema element named '{label}'"
 
 elab "#schema_group" n:ident desc:str "with" "[" ms:ident,* "]" : command => Elab.Command.liftTermElabM do
   let groupId := n.getId.toString
@@ -139,6 +178,40 @@ elab "#schema_group" n:ident desc:str  : command => Elab.Command.liftTermElabM d
   let groupId := n.getId.toString
   let descVal := desc.getString
   jsonSchemasExt.add (.anyOfGroup groupId descVal #[])
+
+elab "#schema_group" n:ident "with" "[" ms:ident,* "]" : command => Elab.Command.liftTermElabM do
+  let groupId := n.getId.toString
+  let descVal := none
+  let membersExpr := ms.getElems.map (·.getId.toString)
+  jsonSchemasExt.add (.anyOfGroup groupId descVal membersExpr)
+
+elab "#schema_group" n:ident   : command => Elab.Command.liftTermElabM do
+  let groupId := n.getId.toString
+  let descVal := none
+  jsonSchemasExt.add (.anyOfGroup groupId descVal #[])
+
+elab "#schema_group" n:str desc:str "with" "[" ms:str,* "]" : command => Elab.Command.liftTermElabM do
+  let groupId := n.getString
+  let descVal := desc.getString
+  let membersExpr := ms.getElems.map (·.getString)
+  jsonSchemasExt.add (.anyOfGroup groupId descVal membersExpr)
+
+elab "#schema_group" n:str desc:str  : command => Elab.Command.liftTermElabM do
+  let groupId := n.getString
+  let descVal := desc.getString
+  jsonSchemasExt.add (.anyOfGroup groupId descVal #[])
+
+elab "#schema_group" n:str "with" "[" ms:str,* "]" : command => Elab.Command.liftTermElabM do
+  let groupId := n.getString
+  let descVal := none
+  let membersExpr := ms.getElems.map (·.getString)
+  jsonSchemasExt.add (.anyOfGroup groupId descVal membersExpr)
+
+elab "#schema_group" n:str   : command => Elab.Command.liftTermElabM do
+  let groupId := n.getString
+  let descVal := none
+  jsonSchemasExt.add (.anyOfGroup groupId descVal #[])
+
 
 elab "#add_to_schema_group" n:ident m:ident,* : command => Elab.Command.liftTermElabM do
   let groupId := n.getId.toString
@@ -159,6 +232,20 @@ elab "#schema_element" n:ident ":=" schema:term : command => Elab.Command.liftTe
   let schemaVal ← Elab.Term.elabTerm schema (mkConst ``Json)
   let schemaJson ← unsafe evalExpr Json (mkConst ``Json) schemaVal
   jsonSchemasExt.add (.schemaElement label schemaJson #[])
+
+elab "#schema_element" n:str  "in" "[" gs:ident,* "]" ":=" schema:term : command => Elab.Command.liftTermElabM do
+  let label := n.getString
+  let schemaVal ← Elab.Term.elabTerm schema (mkConst ``Json)
+  let schemaJson ← unsafe evalExpr Json (mkConst ``Json) schemaVal
+  let groupIds := gs.getElems.map (·.getId.toString)
+  jsonSchemasExt.add (.schemaElement label schemaJson groupIds)
+
+elab "#schema_element" n:str ":=" schema:term : command => Elab.Command.liftTermElabM do
+  let label := n.getString
+  let schemaVal ← Elab.Term.elabTerm schema (mkConst ``Json)
+  let schemaJson ← unsafe evalExpr Json (mkConst ``Json) schemaVal
+  jsonSchemasExt.add (.schemaElement label schemaJson #[])
+
 
 end JsonSchemas
 
