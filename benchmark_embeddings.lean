@@ -14,42 +14,57 @@ open Lean Meta Qq System Elab LeanAide
 
 initialize registerTraceClass `LeanAide.BenchmarkEmbeddings
 
-namespace LeanAide
+set_option trace.LeanAide.BenchmarkEmbeddings true
+example : True := by
+  trace[LeanAide.BenchmarkEmbeddings] "This is a trace message"
+  trivial
 
-instance : Repr SyntaxNodeKinds where
-  reprPrec kinds n :=
-    let names : List Name := kinds
-    Repr.reprPrec names n
 
-instance : ToString SyntaxNodeKinds where
-  toString kinds :=
-    let names : List Name := kinds
-    ToString.toString names
+-- Example: emit a trace message using 'trace' within an IO action
+set_option diagnostics true
+def testTrace : IO Unit := do
+  -- This prints if tracing for MyTraceClass is enabled with: set_option trace.MyTraceClass true
+  trace[LeanAide.BenchmarkEmbeddings] "This is a trace message"
 
-namespace BenchmarkEmbeddings
+  -- Print directly to stderr (always prints)
+  IO.eprintln "[BenchmarkEmbeddings] This is stderr output"
 
-syntax (name := benchmark_embeddings) "benchmark_embeddings" (str,*)? : attr
+-- namespace LeanAide
 
-abbrev Name_and_OptionString := Name × (Option String)
-abbrev Map_of_OptionString_to_ArrayName := Std.HashMap (Option String) (Array Name)
+-- instance : Repr SyntaxNodeKinds where
+--   reprPrec kinds n :=
+--     let names : List Name := kinds
+--     Repr.reprPrec names n
 
-initialize benchmarkEmbeddingsExt :
-  SimpleScopedEnvExtension Name_and_OptionString Map_of_OptionString_to_ArrayName ←
-    registerSimpleScopedEnvExtension {
-      addEntry := fun m (n, key?) => m.insert key? <| (m.getD key? #[]).push n
-      initial := {}
-    }
+-- instance : ToString SyntaxNodeKinds where
+--   toString kinds :=
+--     let names : List Name := kinds
+--     ToString.toString names
 
-def benchmarkEmbeddingsKeyM (stx : Syntax) : CoreM (Option <| Array String) := do
-  match stx with
+-- namespace BenchmarkEmbeddings
+
+-- syntax (name := benchmark_embeddings) "benchmark_embeddings" (str,*)? : attr
+
+-- abbrev Name_and_OptionString := Name × (Option String)
+-- abbrev Map_of_OptionString_to_ArrayName := Std.HashMap (Option String) (Array Name)
+
+-- initialize benchmarkEmbeddingsExt :
+--   SimpleScopedEnvExtension Name_and_OptionString Map_of_OptionString_to_ArrayName ←
+--     registerSimpleScopedEnvExtension {
+--       addEntry := fun m (n, key?) => m.insert key? <| (m.getD key? #[]).push n
+--       initial := {}
+--     }
+
+-- def benchmarkEmbeddingsKeyM (stx : Syntax) : CoreM (Option <| Array String) := do
+--   match stx with
 
 
 unsafe def checkAndFetch (descField: String) : IO Unit := do
   let picklePath ← picklePath descField
   let picklePresent ←
     if ← picklePath.pathExists then
-    -- IO.eprintln s!"Pickle file already present at {picklePath}"
-    trace[leanide.benchmark_embeddings.info] s!"Pickle file already present at"
+    IO.eprintln s!"Pickle file already present at {picklePath}"
+    -- trace[leanide.benchmark_embeddings.info] s!"Pickle file already present at"
     try
       withUnpickle  picklePath <|
         fun (_ : EmbedData) => do
