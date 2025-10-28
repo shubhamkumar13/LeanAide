@@ -1,4 +1,5 @@
 import Lean
+import Std
 open Lean Meta
 
 initialize
@@ -55,3 +56,48 @@ def resourcesDir : IO System.FilePath := do
   return base / "resources"
 
 -- #eval resourcesDir
+
+-- def logToStderr (cls : Name) (msg : String) : IO Unit :=
+--   IO.eprintln s!"[{cls}] {msg}"
+
+-- def logToFile (cls : Name) (msg : String) : IO Unit :=
+--   let fname := ["D:", "fun-dev", "LeanAide", "test.log"]
+--   IO.FS.writeFile (System.mkFilePath fname) (cls.toString ++ ".log" ++ msg ++ "\n")
+
+-- Step 1: Define the log state to track enabled classes
+structure LogState where
+  stderrClasses : List Name := []
+  fileClasses : List Name := []
+  deriving Inhabited
+
+-- Step 2: Create global state for logging control
+initialize logState : IO.Ref LogState ← IO.mkRef ⟨[], []⟩
+
+-- Step 3: Helper functions to enable/disable logging per class
+def enableStderrLogging (cls : Name) : IO Unit := do
+  logState.modify fun s => { s with stderrClasses := cls :: s.stderrClasses }
+
+def enableFileLogging (cls : Name) : IO Unit := do
+  logState.modify fun s => { s with fileClasses := cls :: s.fileClasses }
+
+def disableStderrLogging (cls : Name) : IO Unit := do
+  logState.modify fun s => { s with stderrClasses := s.stderrClasses.erase cls }
+
+def disableFileLogging (cls : Name) : IO Unit := do
+  logState.modify fun s => { s with fileClasses := s.fileClasses.erase cls }
+
+-- Step 4: Check functions
+def shouldLogToStderr (cls : Name) : IO Bool := do
+  let state ← logState.get
+  return state.stderrClasses.contains cls
+
+def shouldLogToFile (cls : Name) : IO Bool := do
+  let state ← logState.get
+  return state.fileClasses.contains cls
+abbrev LoggingIO := StateT LogState IO
+
+def logTrace (cls : Name) (msg : String) : IO Unit := do
+  if ← shouldLogToStderr cls then
+    IO.eprintln s!"[{cls}] {msg}"
+  if ← shouldLogToFile cls then
+    IO.FS.writeFile s!"{cls}.log" s!"{msg}\n"

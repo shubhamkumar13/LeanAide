@@ -7,57 +7,22 @@ import LeanAideCore.Template
 import LeanAideCore.MathDoc
 import LeanAideCore.Resources
 import Qq
+import LeanAideCore.Config
 
 set_option autoImplicit false
+set_option trace.leanaide.benchmark_embeddings.info true
 
 open Lean Meta Qq System Elab LeanAide
 
-initialize registerTraceClass `LeanAide.BenchmarkEmbeddings
+def setupLogging : IO Unit := do
+  enableStderrLogging `leanaide.benchmark_embeddings.info
+  enableFileLogging `leanaide.benchmark_embeddings.info
 
-set_option trace.LeanAide.BenchmarkEmbeddings true
-example : True := by
-  trace[LeanAide.BenchmarkEmbeddings] "This is a trace message"
-  trivial
+def testCustomLogging : IO Unit := do
+  setupLogging
+  logTrace `leanaide.benchmark_embeddings.info "This goes to stderr and file"
 
-
--- Example: emit a trace message using 'trace' within an IO action
-set_option diagnostics true
-def testTrace : IO Unit := do
-  -- This prints if tracing for MyTraceClass is enabled with: set_option trace.MyTraceClass true
-  trace[LeanAide.BenchmarkEmbeddings] "This is a trace message"
-
-  -- Print directly to stderr (always prints)
-  IO.eprintln "[BenchmarkEmbeddings] This is stderr output"
-
--- namespace LeanAide
-
--- instance : Repr SyntaxNodeKinds where
---   reprPrec kinds n :=
---     let names : List Name := kinds
---     Repr.reprPrec names n
-
--- instance : ToString SyntaxNodeKinds where
---   toString kinds :=
---     let names : List Name := kinds
---     ToString.toString names
-
--- namespace BenchmarkEmbeddings
-
--- syntax (name := benchmark_embeddings) "benchmark_embeddings" (str,*)? : attr
-
--- abbrev Name_and_OptionString := Name × (Option String)
--- abbrev Map_of_OptionString_to_ArrayName := Std.HashMap (Option String) (Array Name)
-
--- initialize benchmarkEmbeddingsExt :
---   SimpleScopedEnvExtension Name_and_OptionString Map_of_OptionString_to_ArrayName ←
---     registerSimpleScopedEnvExtension {
---       addEntry := fun m (n, key?) => m.insert key? <| (m.getD key? #[]).push n
---       initial := {}
---     }
-
--- def benchmarkEmbeddingsKeyM (stx : Syntax) : CoreM (Option <| Array String) := do
---   match stx with
-
+#eval testCustomLogging
 
 unsafe def checkAndFetch (descField: String) : IO Unit := do
   let picklePath ← picklePath descField
