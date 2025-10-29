@@ -8,19 +8,21 @@ import LeanAideCore.MathDoc
 import LeanAideCore.Resources
 import Qq
 import LeanAideCore.Config
+import Lean.Util.Trace
 
 set_option autoImplicit false
 set_option trace.leanaide.benchmark_embeddings.info true
 
 open Lean Meta Qq System Elab LeanAide
 
-def setupLogging : IO Unit := do
-  enableStderrLogging `leanaide.benchmark_embeddings.info
-  enableFileLogging `leanaide.benchmark_embeddings.info
-
 def testCustomLogging : IO Unit := do
-  setupLogging
   logTrace `leanaide.benchmark_embeddings.info "This goes to stderr and file"
+
+-- Use trace in tactic context
+example (α : Type) : α → α := by
+  intro α
+  dbg_trace "This goes to Lean's trace system"
+  exact α
 
 #eval testCustomLogging
 
@@ -29,6 +31,7 @@ unsafe def checkAndFetch (descField: String) : IO Unit := do
   let picklePresent ←
     if ← picklePath.pathExists then
     IO.eprintln s!"Pickle file already present at {picklePath}"
+    logTrace `leanaide.benchmark_embeddings.info "T"
     -- trace[leanide.benchmark_embeddings.info] s!"Pickle file already present at"
     try
       withUnpickle  picklePath <|
