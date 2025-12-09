@@ -12,27 +12,27 @@
 
 The following way is what I use but if folks have their own workflows, they can choose them.
 ```bash
-        curl https://mise.run | sh
+curl https://mise.run | sh
 ```
 
 ### BREW
 ```bash
-            brew install mise
+brew install mise
 ```
 
 ## WINDOWS
 Use the package installers for windows, one can choose from the following
 - #### WINGET
     ```ps1
-                winget install jdx.mise
+    winget install jdx.mise
     ```
 - #### SCOOP
     ```ps1
-                scoop install mise
+    scoop install mise
     ```
 - #### CHOCOLATEY
     ```ps1
-                choco install mise
+    choco install mise
     ```
 ## Others
 [installations instruction](https://mise.jdx.dev/getting-started.html) for other methods.
@@ -58,4 +58,4 @@ There are some packages which are not supported by mise but my current estimatio
 
 # RESCRIPT
 - TODO
-    - alrealy talked about the why, talk about how
+    - already talked about the why, talk about how
