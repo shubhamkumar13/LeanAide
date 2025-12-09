@@ -1,0 +1,26 @@
+{
+  "name": "newserver",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "res:build": "mise exec bun -- bunx rescript build"
+  },
+  "main": "src/res/App.js",
+  "files": [
+    "rescript.json",
+    "README.md",
+    "src/res/**/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "effect": "^3.19.9",
+    "rescript": "^12.0.0",
+    "rescript-bun": "^2.1.0"
+  }
+}

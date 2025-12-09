@@ -1,0 +1,16 @@
+{
+    "name": "newserver",
+    "sources" : [
+        {
+            "dir": "src/res",
+            "subdirs": true
+        }
+    ],
+    "package-specs": {
+        "module": "esmodule",
+        "in-source": true
+    },
+    "suffix": ".js",
+    "dependencies": ["rescript-bun"],
+    "bsc-flags": ["-open RescriptBun", "-open RescriptBun.Globals"]
+}
