@@ -20,7 +20,7 @@ curl https://mise.run | sh
 brew install mise
 ```
 
-## WINDOWS
+### WINDOWS
 Use the package installers for windows, one can choose from the following
 - #### WINGET
     ```ps1
@@ -34,14 +34,14 @@ Use the package installers for windows, one can choose from the following
     ```ps1
     choco install mise
     ```
-## Others
+### Others
 [installations instruction](https://mise.jdx.dev/getting-started.html) for other methods.
 
 <br>
 
 # BUN
 
-## INSTALLATION
+### INSTALLATION
 
 I am going to install `bun` using `mise` by using `mise use bun`. It will create a `mise.toml` and all the child directories will implicitly use packages mentioned inside `mise.toml`.<br><br>
 
@@ -52,7 +52,7 @@ Mise provides an alternative shell environment nothing else. This helps in isola
 
 There are some packages which are not supported by mise but my current estimation is things might just work.<br><br> 
 
-## USAGE
+### USAGE
 - I am using `bun` to run a `res:build` script (in `package.json`). It essentially run the rescript watcher - `mise exec bun -- bunx rescript watch`
 - Secondly for running the `src/server.ts` file to run the server by `mise exec bun -- bun run src/server.ts`
 
