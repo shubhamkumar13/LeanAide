@@ -8,7 +8,7 @@
 # INSTALLATION
 <br>
 
-## LINUX/MAC (recommended)
+### LINUX/MAC (recommended)
 
 The following way is what I use but if folks have their own workflows, they can choose them.
 ```bash
